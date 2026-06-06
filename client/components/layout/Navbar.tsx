@@ -110,13 +110,13 @@ export function Navbar() {
                     className="flex items-center gap-2 group"
                   >
                     <Avatar
-                      src={user.avatar}
-                      alt={user.name}
+                      src={user?.avatar}
+                      alt={user?.name || 'User'}
                       size="sm"
                       className="ring-2 ring-transparent group-hover:ring-brand-500 transition-all"
                     />
                     <span className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
-                      {user.name.split(' ')[0]}
+                      {user?.name?.split(' ')[0] ?? 'User'}
                     </span>
                   </button>
 
@@ -135,8 +135,8 @@ export function Navbar() {
                           className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-100 z-20 overflow-hidden"
                         >
                           <div className="p-3 border-b border-slate-100">
-                            <p className="text-sm font-semibold text-slate-900">{user.name}</p>
-                            <p className="text-xs text-slate-500">{user.email}</p>
+                            <p className="text-sm font-semibold text-slate-900">{user?.name}</p>
+                            <p className="text-xs text-slate-500">{user?.email}</p>
                           </div>
                           <div className="p-1.5">
                             <Link
@@ -147,7 +147,7 @@ export function Navbar() {
                               <DashboardIcon fontSize="small" className="text-slate-400" />
                               Dashboard
                             </Link>
-                            {user.role === 'user' && (
+                            {user?.role === 'user' && (
                               <Link
                                 href="/bookings"
                                 onClick={() => setProfileOpen(false)}
@@ -165,7 +165,7 @@ export function Navbar() {
                               <PersonIcon fontSize="small" className="text-slate-400" />
                               Profile
                             </Link>
-                            {user.role === 'admin' && (
+                            {user?.role === 'admin' && (
                               <Link
                                 href="/admin/dashboard"
                                 onClick={() => setProfileOpen(false)}

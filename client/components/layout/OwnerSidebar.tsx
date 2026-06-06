@@ -21,7 +21,7 @@ const navItems = [
   { label: 'My Turf', href: '/turf', icon: GrassIcon },
   { label: 'Edit Turf', href: '/turf/edit', icon: EditIcon },
   { label: 'Slot Management', href: '/slots', icon: EventAvailableIcon },
-  { label: 'Bookings', href: '/bookings', icon: BookOnlineIcon },
+  { label: 'Bookings', href: '/owner-bookings', icon: BookOnlineIcon },
   { label: 'Reviews', href: '/reviews', icon: StarIcon },
 ]
 
