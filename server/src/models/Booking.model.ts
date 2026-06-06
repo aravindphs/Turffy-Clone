@@ -124,12 +124,8 @@ BookingSchema.pre('save', function (next) {
   next();
 });
 
-BookingSchema.set('toJSON', {
-  transform: (_doc, ret) => {
-    delete ret.__v;
-    return ret;
-  },
-});
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+BookingSchema.set('toJSON', { transform: (_doc: any, ret: any) => { delete ret.__v; return ret; } });
 
 const Booking = mongoose.model<IBooking>('Booking', BookingSchema);
 export default Booking;

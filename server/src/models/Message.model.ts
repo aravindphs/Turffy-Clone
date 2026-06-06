@@ -51,12 +51,8 @@ const MessageSchema = new Schema<IMessage>(
 MessageSchema.index({ booking: 1, createdAt: 1 });
 MessageSchema.index({ booking: 1, isRead: 1 });
 
-MessageSchema.set('toJSON', {
-  transform: (_doc, ret) => {
-    delete ret.__v;
-    return ret;
-  },
-});
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+MessageSchema.set('toJSON', { transform: (_doc: any, ret: any) => { delete ret.__v; return ret; } });
 
 const Message = mongoose.model<IMessage>('Message', MessageSchema);
 export default Message;

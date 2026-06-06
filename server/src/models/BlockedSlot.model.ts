@@ -78,12 +78,8 @@ BlockedSlotSchema.pre('save', function (next) {
   next();
 });
 
-BlockedSlotSchema.set('toJSON', {
-  transform: (_doc, ret) => {
-    delete ret.__v;
-    return ret;
-  },
-});
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+BlockedSlotSchema.set('toJSON', { transform: (_doc: any, ret: any) => { delete ret.__v; return ret; } });
 
 const BlockedSlot = mongoose.model<IBlockedSlot>('BlockedSlot', BlockedSlotSchema);
 export default BlockedSlot;

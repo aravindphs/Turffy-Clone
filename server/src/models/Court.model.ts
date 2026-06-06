@@ -49,12 +49,8 @@ const CourtSchema = new Schema<ICourt>(
 CourtSchema.index({ turf: 1, isActive: 1 });
 CourtSchema.index({ turf: 1, sport: 1 });
 
-CourtSchema.set('toJSON', {
-  transform: (_doc, ret) => {
-    delete ret.__v;
-    return ret;
-  },
-});
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+CourtSchema.set('toJSON', { transform: (_doc: any, ret: any) => { delete ret.__v; return ret; } });
 
 const Court = mongoose.model<ICourt>('Court', CourtSchema);
 export default Court;

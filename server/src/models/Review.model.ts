@@ -68,12 +68,8 @@ ReviewSchema.index({ user: 1, turf: 1 }, { unique: true });
 ReviewSchema.index({ turf: 1, isVisible: 1, createdAt: -1 });
 ReviewSchema.index({ booking: 1 }, { unique: true });
 
-ReviewSchema.set('toJSON', {
-  transform: (_doc, ret) => {
-    delete ret.__v;
-    return ret;
-  },
-});
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ReviewSchema.set('toJSON', { transform: (_doc: any, ret: any) => { delete ret.__v; return ret; } });
 
 const Review = mongoose.model<IReview>('Review', ReviewSchema);
 export default Review;

@@ -75,12 +75,8 @@ NotificationSchema.index({ user: 1, type: 1 });
 // TTL: auto-delete notifications older than 90 days
 NotificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7776000 });
 
-NotificationSchema.set('toJSON', {
-  transform: (_doc, ret) => {
-    delete ret.__v;
-    return ret;
-  },
-});
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+NotificationSchema.set('toJSON', { transform: (_doc: any, ret: any) => { delete ret.__v; return ret; } });
 
 const Notification = mongoose.model<INotification>('Notification', NotificationSchema);
 export default Notification;

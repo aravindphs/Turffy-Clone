@@ -239,12 +239,8 @@ TurfSchema.pre('save', async function (next) {
   next();
 });
 
-TurfSchema.set('toJSON', {
-  transform: (_doc, ret) => {
-    delete ret.__v;
-    return ret;
-  },
-});
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+TurfSchema.set('toJSON', { transform: (_doc: any, ret: any) => { delete ret.__v; return ret; } });
 
 const Turf = mongoose.model<ITurf>('Turf', TurfSchema);
 export default Turf;
