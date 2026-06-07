@@ -16,19 +16,20 @@ export const generalLimiter = rateLimit({
 });
 
 /**
- * Auth rate limiter: 10 requests per 15 minutes per IP.
- * Applied to login, register, forgot-password routes.
+ * Auth rate limiter: 20 failed attempts per 15 minutes per IP in production.
+ * Successful requests are skipped so normal logins don't eat the quota.
+ * Very permissive in development to avoid friction during local testing.
  */
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: process.env.NODE_ENV === 'development' ? 1000 : 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     success: false,
     message: 'Too many authentication attempts. Please try again after 15 minutes.',
   },
-  skipSuccessfulRequests: false,
+  skipSuccessfulRequests: true,
 });
 
 /**
