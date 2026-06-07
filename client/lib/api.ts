@@ -62,7 +62,13 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // /auth/me is a session-check — a 401 just means "not logged in", no refresh needed.
+    // /auth/refresh-token itself failing must not re-trigger the interceptor.
+    const url = originalRequest.url ?? ''
+    const isSessionCheck = url.includes('/auth/me')
+    const isRefreshAttempt = url.includes('/auth/refresh-token')
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isSessionCheck && !isRefreshAttempt) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
@@ -76,7 +82,7 @@ api.interceptors.response.use(
 
       try {
         await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/auth/refresh`,
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/auth/refresh-token`,
           {},
           { withCredentials: true }
         )
@@ -84,8 +90,8 @@ api.interceptors.response.use(
         return api(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError as AxiosError)
-        // Redirect to login if refresh fails
-        if (typeof window !== 'undefined') {
+        // Only redirect when not already on the login page to prevent an infinite loop
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
           window.location.href = '/login'
         }
         return Promise.reject(refreshError)
