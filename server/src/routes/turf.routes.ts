@@ -39,6 +39,7 @@ router.get(
   optionalAuth,
   turfController.getTurfAvailability
 );
+router.get('/:turfId/courts/:courtId/qr', turfController.getCourtQR);
 
 router.patch(
   '/:turfId',

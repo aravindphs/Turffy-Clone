@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
+import QRCode from 'qrcode';
 import Turf from '../models/Turf.model';
 import Court from '../models/Court.model';
 import Booking from '../models/Booking.model';
@@ -14,6 +15,7 @@ import {
 } from '../validators/turf.validator';
 import { generateSlots, calculateSlotPrice, isSlotAvailable } from '../utils/slot.utils';
 import { cloudinary } from '../middleware/upload';
+import { env } from '../config/env';
 
 // ---- CREATE TURF ----
 export const createTurf = asyncHandler(async (req: Request, res: Response) => {
@@ -669,4 +671,35 @@ export const updatePricing = asyncHandler(async (req: Request, res: Response) =>
     { basePrice: turf.basePrice, peakHours: turf.peakHours },
     'Pricing updated successfully'
   );
+});
+
+// ---- GET COURT QR CODE ----
+export const getCourtQR = asyncHandler(async (req: Request, res: Response) => {
+  const { turfId, courtId } = req.params;
+
+  const [court, turf] = await Promise.all([
+    Court.findOne({ _id: courtId, turf: turfId, isActive: true }).lean(),
+    Turf.findById(turfId).select('slug name').lean(),
+  ]);
+
+  if (!court || !turf) {
+    res.status(404).json({ success: false, message: 'Court not found.' });
+    return;
+  }
+
+  // Deterministic booking URL — never changes as long as courtId is fixed
+  const bookingUrl = `${env.CLIENT_URL}/turfs/${turf.slug}?court=${courtId}&walkIn=true`;
+
+  const qrBuffer = await QRCode.toBuffer(bookingUrl, {
+    type: 'png',
+    width: 400,
+    margin: 2,
+    color: { dark: '#0f172a', light: '#ffffff' },
+    errorCorrectionLevel: 'M',
+  });
+
+  res.setHeader('Content-Type', 'image/png');
+  res.setHeader('Content-Disposition', `inline; filename="turffy-court-${courtId}-qr.png"`);
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  res.send(qrBuffer);
 });

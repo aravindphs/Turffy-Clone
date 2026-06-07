@@ -2,11 +2,14 @@
 
 import { Court } from '@/types'
 import SportsIcon from '@mui/icons-material/Sports'
+import { CourtQRCode } from './CourtQRCode'
 
 interface CourtTabsProps {
   courts: Court[]
   selectedCourtId: string
   onChange: (courtId: string) => void
+  turfId: string
+  turfName: string
 }
 
 const sportEmoji: Record<string, string> = {
@@ -19,7 +22,7 @@ const sportEmoji: Record<string, string> = {
   other: '🏆',
 }
 
-export function CourtTabs({ courts, selectedCourtId, onChange }: CourtTabsProps) {
+export function CourtTabs({ courts, selectedCourtId, onChange, turfId, turfName }: CourtTabsProps) {
   if (courts.length === 0) return null
 
   return (
@@ -42,6 +45,16 @@ export function CourtTabs({ courts, selectedCourtId, onChange }: CourtTabsProps)
             <span className={`text-xs ${isSelected ? 'text-brand-100' : 'text-slate-400'}`}>
               ₹{court.basePricePerSlot}/slot
             </span>
+            {isSelected && (
+              <CourtQRCode
+                turfId={turfId}
+                courtId={court._id}
+                courtName={court.name}
+                turfName={turfName}
+                sport={court.sport}
+                variant="badge"
+              />
+            )}
           </button>
         )
       })}
