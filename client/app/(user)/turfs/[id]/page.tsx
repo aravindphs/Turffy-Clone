@@ -1,14 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { motion } from 'framer-motion'
 import StarIcon from '@mui/icons-material/Star'
 import LocationOnIcon from '@mui/icons-material/LocationOn'
-import PhoneIcon from '@mui/icons-material/Phone'
 import DirectionsIcon from '@mui/icons-material/Directions'
+import CheckIcon from '@mui/icons-material/Check'
 import { turfApi } from '@/lib/api'
 import { Slot, Court } from '@/types'
 import { Navbar } from '@/components/layout/Navbar'
@@ -21,6 +21,7 @@ import { BookingSummary } from '@/components/booking/BookingSummary'
 import { PaymentButton } from '@/components/booking/PaymentButton'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 
 // Skeleton
 function TurfDetailSkeleton() {
@@ -43,6 +44,7 @@ export default function TurfDetailPage() {
   const [selectedSlots, setSelectedSlots] = useState<Slot[]>([])
   const [totalPrice, setTotalPrice] = useState(0)
   const [selectedCourt, setSelectedCourt] = useState<Court | null>(null)
+  const [bookingStep, setBookingStep] = useState<1 | 2 | 3>(1)
 
   const { data: turf, isLoading } = useQuery({
     queryKey: ['turf', id],
@@ -61,6 +63,10 @@ export default function TurfDetailPage() {
   const handleSlotSelection = (slots: Slot[], price: number) => {
     setSelectedSlots(slots)
     setTotalPrice(price)
+    // Go back to step 1 if slots are cleared
+    if (slots.length === 0 && bookingStep > 1) {
+      setBookingStep(1)
+    }
   }
 
   if (isLoading) {
@@ -109,7 +115,10 @@ export default function TurfDetailPage() {
                   <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900">{turf.name}</h1>
                   <div className="flex items-center gap-2 mt-2">
                     <LocationOnIcon className="text-brand-500" fontSize="small" />
-                    <span className="text-slate-600">{turf.location.address}, {turf.location.city}</span>
+                    <span className="text-slate-600">
+                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                      {(turf as any).address ?? turf.location?.address}, {(turf as any).city ?? turf.location?.city}
+                    </span>
                   </div>
                   <div className="flex items-center gap-3 mt-3 flex-wrap">
                     {turf.sports.map((sport) => (
@@ -121,13 +130,16 @@ export default function TurfDetailPage() {
                   <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
                     <StarIcon className="text-amber-500" fontSize="small" />
                     <span className="font-bold text-slate-900">
-                      {turf.averageRating > 0 ? turf.averageRating.toFixed(1) : 'New'}
+                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                      {((turf as any).rating ?? turf.averageRating) > 0
+                        ? ((turf as any).rating ?? turf.averageRating).toFixed(1)
+                        : 'New'}
                     </span>
                     <span className="text-slate-400 text-sm">({turf.totalReviews})</span>
                   </div>
                   <div className="flex items-center gap-2 mt-2">
                     <a
-                      href={`https://maps.google.com/?q=${turf.location.address}`}
+                      href={`https://maps.google.com/?q=${(turf as any).address ?? turf.location?.address}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700 transition-colors"
@@ -162,7 +174,8 @@ export default function TurfDetailPage() {
               <h2 className="text-xl font-bold text-slate-900 mb-4">Reviews</h2>
               <ReviewList
                 turfId={turf._id}
-                averageRating={turf.averageRating}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                averageRating={(turf as any).rating ?? turf.averageRating}
                 totalReviews={turf.totalReviews}
               />
             </div>
@@ -172,47 +185,132 @@ export default function TurfDetailPage() {
           <div className="lg:col-span-1">
             <div className="sticky top-24">
               <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-6 space-y-5">
+                {/* Booking Progress Stepper */}
+                <div className="flex items-center gap-2">
+                  {[
+                    { n: 1 as const, label: 'Slots' },
+                    { n: 2 as const, label: 'Review' },
+                    { n: 3 as const, label: 'Pay' },
+                  ].map((step, i) => (
+                    <React.Fragment key={step.n}>
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+                            bookingStep >= step.n
+                              ? 'bg-brand-600 text-white'
+                              : 'bg-slate-100 text-slate-400'
+                          }`}
+                        >
+                          {bookingStep > step.n ? (
+                            <CheckIcon style={{ fontSize: 14 }} />
+                          ) : (
+                            step.n
+                          )}
+                        </div>
+                        <span
+                          className={`text-xs mt-1 ${
+                            bookingStep >= step.n ? 'text-brand-600 font-medium' : 'text-slate-400'
+                          }`}
+                        >
+                          {step.label}
+                        </span>
+                      </div>
+                      {i < 2 && (
+                        <div
+                          className={`flex-1 h-0.5 mb-4 transition-colors ${
+                            bookingStep > step.n ? 'bg-brand-600' : 'bg-slate-200'
+                          }`}
+                        />
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+
                 {/* Price Preview */}
                 <div className="flex items-baseline justify-between">
                   <div>
                     <p className="text-sm text-slate-400">Starting from</p>
                     <p className="text-2xl font-extrabold text-slate-900">
-                      ₹{activeCourt?.basePricePerSlot || 0}
+                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                      ₹{activeCourt?.basePricePerSlot ?? (activeCourt as any)?.basePrice ?? (turf as any)?.basePrice ?? 0}
                       <span className="text-sm font-normal text-slate-500">/slot</span>
                     </p>
                   </div>
-                  {turf.averageRating > 0 && (
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {((turf as any).rating ?? turf.averageRating) > 0 && (
                     <div className="flex items-center gap-1 text-sm">
                       <StarIcon className="text-amber-400" style={{ fontSize: 16 }} />
-                      <span className="font-semibold">{turf.averageRating.toFixed(1)}</span>
+                      <span className="font-semibold">
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                        {((turf as any).rating ?? turf.averageRating).toFixed(1)}
+                      </span>
                     </div>
                   )}
                 </div>
 
-                {/* Booking Summary */}
-                <BookingSummary
-                  turf={turf}
-                  court={activeCourt}
-                  selectedDate={selectedDate}
-                  selectedSlots={selectedSlots}
-                  totalPrice={totalPrice}
-                />
-
-                {/* Pay Button */}
-                {activeCourt && selectedSlots.length > 0 && (
-                  <PaymentButton
-                    turf={turf}
-                    court={activeCourt}
-                    date={format(selectedDate, 'yyyy-MM-dd')}
-                    selectedSlots={selectedSlots}
-                    totalPrice={totalPrice}
-                  />
-                )}
-
-                {selectedSlots.length === 0 && (
+                {/* Step 1: slot selection placeholder or step 2/3 content */}
+                {bookingStep === 1 && selectedSlots.length === 0 && (
                   <p className="text-center text-sm text-slate-400 border border-dashed border-slate-200 rounded-xl py-4">
                     Select time slots above to continue
                   </p>
+                )}
+
+                {bookingStep === 1 && selectedSlots.length > 0 && (
+                  <>
+                    <BookingSummary
+                      turf={turf}
+                      court={activeCourt}
+                      selectedDate={selectedDate}
+                      selectedSlots={selectedSlots}
+                      totalPrice={totalPrice}
+                    />
+                    <Button className="w-full" onClick={() => setBookingStep(2)}>
+                      Continue →
+                    </Button>
+                  </>
+                )}
+
+                {bookingStep === 2 && (
+                  <>
+                    <BookingSummary
+                      turf={turf}
+                      court={activeCourt}
+                      selectedDate={selectedDate}
+                      selectedSlots={selectedSlots}
+                      totalPrice={totalPrice}
+                    />
+                    <div className="flex gap-3">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => setBookingStep(1)}
+                      >
+                        ← Back
+                      </Button>
+                      <Button className="flex-1" onClick={() => setBookingStep(3)}>
+                        Proceed to Pay
+                      </Button>
+                    </div>
+                  </>
+                )}
+
+                {bookingStep === 3 && activeCourt && (
+                  <>
+                    <BookingSummary
+                      turf={turf}
+                      court={activeCourt}
+                      selectedDate={selectedDate}
+                      selectedSlots={selectedSlots}
+                      totalPrice={totalPrice}
+                    />
+                    <PaymentButton
+                      turf={turf}
+                      court={activeCourt}
+                      date={format(selectedDate, 'yyyy-MM-dd')}
+                      selectedSlots={selectedSlots}
+                      totalPrice={totalPrice}
+                    />
+                  </>
                 )}
 
                 {/* Turf Contact */}

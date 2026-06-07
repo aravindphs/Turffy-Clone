@@ -13,6 +13,36 @@ import { useTurfAvailability } from '@/hooks/useTurfAvailability'
 import { Spinner } from '@/components/ui/Spinner'
 import { useSocket } from '@/hooks/useSocket'
 
+// ─── Time Group Helpers ────────────────────────────────────────────────────────
+
+const TIME_GROUPS = [
+  { key: 'morning' as const, label: 'Morning', emoji: '🌅' },
+  { key: 'afternoon' as const, label: 'Afternoon', emoji: '☀️' },
+  { key: 'evening' as const, label: 'Evening', emoji: '🌆' },
+  { key: 'night' as const, label: 'Night', emoji: '🌙' },
+]
+
+function groupSlotsByTime(slots: Slot[]) {
+  return {
+    morning: slots.filter((s) => {
+      const h = parseInt(s.startTime.split(':')[0])
+      return h >= 6 && h < 12
+    }),
+    afternoon: slots.filter((s) => {
+      const h = parseInt(s.startTime.split(':')[0])
+      return h >= 12 && h < 17
+    }),
+    evening: slots.filter((s) => {
+      const h = parseInt(s.startTime.split(':')[0])
+      return h >= 17 && h < 21
+    }),
+    night: slots.filter((s) => {
+      const h = parseInt(s.startTime.split(':')[0])
+      return h >= 21
+    }),
+  }
+}
+
 interface SlotGridProps {
   turfId: string
   courts: Court[]
@@ -184,7 +214,7 @@ export function SlotGrid({
       {/* Legend */}
       <SlotLegend />
 
-      {/* Slots Grid */}
+      {/* Slots Grid — grouped by time of day */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <Spinner size="lg" />
@@ -195,18 +225,28 @@ export function SlotGrid({
           <p>No slots available for this date.</p>
         </div>
       ) : (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2"
-        >
-          {slots.map((slot) => (
-            <SlotCell
-              key={slot.id}
-              slot={slot}
-              onToggle={handleSlotToggle}
-            />
-          ))}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+          {TIME_GROUPS.map(({ key, label, emoji }) => {
+            const groupSlots = groupSlotsByTime(slots)[key]
+            if (groupSlots.length === 0) return null
+            const availableCount = groupSlots.filter((s) => s.status === 'available').length
+            return (
+              <div key={key}>
+                <div className="flex items-center gap-2 mb-3 mt-2">
+                  <span className="text-lg">{emoji}</span>
+                  <h4 className="font-semibold text-slate-700">{label}</h4>
+                  <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+                    {availableCount} available
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 mb-4">
+                  {groupSlots.map((slot) => (
+                    <SlotCell key={slot.id} slot={slot} onToggle={handleSlotToggle} />
+                  ))}
+                </div>
+              </div>
+            )
+          })}
         </motion.div>
       )}
 

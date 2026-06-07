@@ -1,9 +1,12 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import { Toaster } from 'react-hot-toast'
 import './globals.css'
 import { QueryProvider } from '@/providers/QueryProvider'
 import { AuthProvider } from '@/providers/AuthProvider'
 import { SocketProvider } from '@/providers/SocketProvider'
+import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow'
+import { ProfileNudge } from '@/components/ui/ProfileNudge'
 
 export const metadata: Metadata = {
   title: {
@@ -27,11 +30,20 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#16a34a" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Turffy" />
+      </head>
       <body>
         <QueryProvider>
           <AuthProvider>
             <SocketProvider>
+              <OnboardingFlow />
               {children}
+              <ProfileNudge />
               <Toaster
                 position="top-right"
                 toastOptions={{
@@ -55,6 +67,9 @@ export default function RootLayout({
             </SocketProvider>
           </AuthProvider>
         </QueryProvider>
+        <Script id="sw-register" strategy="afterInteractive">
+          {`if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); }`}
+        </Script>
       </body>
     </html>
   )
