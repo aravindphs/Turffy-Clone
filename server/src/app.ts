@@ -40,6 +40,8 @@ app.use(
   helmet({
     contentSecurityPolicy: env.NODE_ENV === 'production',
     crossOriginEmbedderPolicy: false,
+    // Allow Google Identity Services popup to postMessage back to the page
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
   })
 );
 
