@@ -312,4 +312,18 @@ export const adminApi = {
     api.get<ApiResponse<Turf[]>>('/admin/turfs/pending'),
 }
 
+// ─── Subscription APIs ───────────────────────────────────────────────────────
+
+export const subscriptionApi = {
+  getStatus: () => api.get('/subscription'),
+  createOrder: (tier: 'pro' | 'business') =>
+    api.post('/subscription/order', { tier }),
+  verifyPayment: (data: {
+    razorpayOrderId: string
+    razorpayPaymentId: string
+    razorpaySignature: string
+    tier: 'pro' | 'business'
+  }) => api.post('/subscription/verify', data),
+}
+
 export default api

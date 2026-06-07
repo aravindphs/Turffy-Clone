@@ -12,6 +12,7 @@ import { statsApi, turfApi } from '@/lib/api'
 import api from '@/lib/api'
 import { StatsCard } from '@/components/owner/StatsCard'
 import { RevenueChart } from '@/components/owner/RevenueChart'
+import { SubscriptionBanner } from '@/components/owner/SubscriptionBanner'
 import { Badge } from '@/components/ui/Badge'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { Booking, Court } from '@/types'
@@ -93,6 +94,9 @@ export default function OwnerDashboard() {
         <h1 className="text-2xl font-extrabold text-slate-900">Dashboard</h1>
         <p className="text-slate-500 mt-1">Welcome back! Here&apos;s your turf overview.</p>
       </div>
+
+      {/* Subscription Banner */}
+      <SubscriptionBanner />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
