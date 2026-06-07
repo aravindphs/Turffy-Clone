@@ -45,6 +45,7 @@ function groupSlotsByTime(slots: Slot[]) {
 
 interface SlotGridProps {
   turfId: string
+  turfName: string
   courts: Court[]
   onSelectionChange?: (slots: Slot[], totalPrice: number) => void
   ownerMode?: boolean
@@ -115,6 +116,7 @@ function SlotLegend() {
 
 export function SlotGrid({
   turfId,
+  turfName,
   courts,
   onSelectionChange,
   ownerMode = false,
@@ -208,6 +210,8 @@ export function SlotGrid({
           courts={courts}
           selectedCourtId={selectedCourtId}
           onChange={handleCourtChange}
+          turfId={turfId}
+          turfName={turfName}
         />
       )}
 

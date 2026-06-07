@@ -5,6 +5,7 @@ import Turf from '../models/Turf.model';
 import Court from '../models/Court.model';
 import Booking from '../models/Booking.model';
 import BlockedSlot from '../models/BlockedSlot.model';
+import User from '../models/User.model';
 import asyncHandler from '../utils/asyncHandler';
 import { sendSuccess, sendError, sendPaginated } from '../utils/response.utils';
 import {
@@ -20,6 +21,18 @@ import { env } from '../config/env';
 // ---- CREATE TURF ----
 export const createTurf = asyncHandler(async (req: Request, res: Response) => {
   const body = createTurfSchema.parse(req.body);
+
+  // Check subscription tier court limit
+  const ownerUser = await User.findById(req.user!._id).select('subscription').lean() as { subscription?: { tier?: string; validUntil?: Date | null } } | null;
+  const tier = ownerUser?.subscription?.tier || 'free';
+  const validUntil = ownerUser?.subscription?.validUntil ?? null;
+  const isSubActive = tier !== 'free' && (validUntil === null || (validUntil && new Date(validUntil) > new Date()));
+  const maxCourts = isSubActive && tier === 'business' ? 20 : isSubActive && tier === 'pro' ? 10 : 2;
+
+  if (body.courts.length > maxCourts) {
+    sendError(res, `Your ${tier} plan allows up to ${maxCourts} courts. Upgrade to add more.`, 403);
+    return;
+  }
 
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -166,6 +179,12 @@ export const getTurfs = asyncHandler(async (req: Request, res: Response) => {
   const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10)));
   const skip = (pageNum - 1) * limitNum;
 
+  // Auto-expire featured status inline
+  await Turf.updateMany(
+    { isFeatured: true, featuredUntil: { $lt: new Date() } },
+    { $set: { isFeatured: false } }
+  );
+
   // Build match stage
   const match: Record<string, unknown> = {
     isActive: true,
@@ -207,15 +226,15 @@ export const getTurfs = asyncHandler(async (req: Request, res: Response) => {
     pipeline.push({ $match: match });
   }
 
-  // Add sort stage if not geo
+  // Add sort stage if not geo — featured turfs always appear first
   if (!lat || !lng) {
     const sortMap: Record<string, Record<string, 1 | -1>> = {
-      rating: { rating: -1 },
-      price_asc: { basePrice: 1 },
-      price_desc: { basePrice: -1 },
-      newest: { createdAt: -1 },
+      rating: { isFeatured: -1, rating: -1 },
+      price_asc: { isFeatured: -1, basePrice: 1 },
+      price_desc: { isFeatured: -1, basePrice: -1 },
+      newest: { isFeatured: -1, createdAt: -1 },
     };
-    pipeline.push({ $sort: sortMap[sort] ?? { rating: -1 } });
+    pipeline.push({ $sort: sortMap[sort] ?? { isFeatured: -1, rating: -1 } });
   }
 
   // Count total before pagination

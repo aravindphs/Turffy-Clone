@@ -7,14 +7,16 @@ import BookOnlineIcon from '@mui/icons-material/BookOnline'
 import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee'
 import StarIcon from '@mui/icons-material/Star'
 import TodayIcon from '@mui/icons-material/Today'
-import { statsApi } from '@/lib/api'
+import QrCode2Icon from '@mui/icons-material/QrCode2'
+import { statsApi, turfApi } from '@/lib/api'
 import api from '@/lib/api'
 import { StatsCard } from '@/components/owner/StatsCard'
 import { RevenueChart } from '@/components/owner/RevenueChart'
 import { Badge } from '@/components/ui/Badge'
 import { PageSpinner } from '@/components/ui/Spinner'
-import { Booking } from '@/types'
+import { Booking, Court } from '@/types'
 import Link from 'next/link'
+import { CourtQRCode } from '@/components/turf/CourtQRCode'
 
 function BookingRow({ booking }: { booking: Booking }) {
   const statusColors = {
@@ -75,6 +77,14 @@ export default function OwnerDashboard() {
     },
   })
 
+  const { data: myTurf } = useQuery({
+    queryKey: ['my-turf'],
+    queryFn: async () => {
+      const res = await turfApi.getMyTurf()
+      return res.data.data.turf
+    },
+  })
+
   if (isLoading) return <PageSpinner />
 
   return (
@@ -118,6 +128,30 @@ export default function OwnerDashboard() {
       {analyticsData && analyticsData.length > 0 && (
         <div className="mb-8">
           <RevenueChart data={analyticsData} title="Revenue — Last 30 Days" />
+        </div>
+      )}
+
+      {/* Court QR Codes */}
+      {myTurf && myTurf.courts && myTurf.courts.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-4">
+            <QrCode2Icon className="text-brand-600" />
+            <h2 className="text-xl font-bold text-slate-900">Court QR Codes</h2>
+            <span className="text-sm text-slate-500">— Print and display at court entrance</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {myTurf.courts.map((court: Court) => (
+              <CourtQRCode
+                key={court._id}
+                turfId={myTurf._id}
+                courtId={court._id}
+                courtName={court.name}
+                turfName={myTurf.name}
+                sport={court.sport}
+                variant="card"
+              />
+            ))}
+          </div>
         </div>
       )}
 

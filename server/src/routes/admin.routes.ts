@@ -17,6 +17,7 @@ router.get('/turfs', adminController.getAllTurfs);
 router.get('/turfs/pending', adminController.getPendingTurfs);
 router.patch('/turfs/:turfId/approve', adminController.approveTurf);
 router.patch('/turfs/:turfId/reject', adminController.rejectTurf);
+router.post('/turfs/:turfId/feature', adminController.featureTurf);
 
 // User management
 router.get('/users', adminController.getAllUsers);

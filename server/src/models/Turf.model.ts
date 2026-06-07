@@ -46,6 +46,8 @@ export interface ITurf extends Document {
   totalReviews: number;
   isVerified: boolean;
   isActive: boolean;
+  isFeatured: boolean;
+  featuredUntil: Date | null;
   cancellationPolicy: ICancellationPolicy;
   createdAt: Date;
   updatedAt: Date;
@@ -195,6 +197,15 @@ const TurfSchema = new Schema<ITurf>(
       type: Boolean,
       default: true,
     },
+    isFeatured: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    featuredUntil: {
+      type: Date,
+      default: null,
+    },
     cancellationPolicy: {
       fullRefundHours: { type: Number, default: 24, min: 0 },
       halfRefundHours: { type: Number, default: 6, min: 0 },
@@ -248,6 +259,14 @@ TurfSchema.pre('save', async function (next) {
   }
 
   this.slug = slug;
+  next();
+});
+
+// Auto-expire featured status
+TurfSchema.pre('save', function (next) {
+  if (this.featuredUntil && this.featuredUntil < new Date()) {
+    this.isFeatured = false;
+  }
   next();
 });
 

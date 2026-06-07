@@ -34,7 +34,10 @@ export function TurfCard({ turf }: TurfCardProps) {
       transition={{ duration: 0.2 }}
     >
       <Link href={`/turfs/${turf._id}`} className="block">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+        <div className={[
+          'bg-white rounded-2xl border shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden',
+          turf.isFeatured ? 'border-amber-300 shadow-amber-100' : 'border-slate-200',
+        ].join(' ')}>
           {/* Image */}
           <div className="relative h-48 bg-slate-200">
             {turf.images[0] ? (
@@ -50,6 +53,12 @@ export function TurfCard({ turf }: TurfCardProps) {
                 <SportsSoccerIcon className="text-slate-400 text-5xl" />
               </div>
             )}
+            {/* Sponsored Badge */}
+            {turf.isFeatured && (
+              <div className="absolute top-3 left-3 z-10 bg-amber-400 text-amber-900 text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
+                ⭐ Sponsored
+              </div>
+            )}
             {/* Rating Overlay */}
             <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-xl px-2.5 py-1 flex items-center gap-1 shadow-sm">
               <StarIcon fontSize="small" className="text-amber-400" />
@@ -58,7 +67,10 @@ export function TurfCard({ turf }: TurfCardProps) {
               </span>
             </div>
             {/* Sport Tags */}
-            <div className="absolute top-3 left-3 flex gap-1 flex-wrap max-w-[70%]">
+            <div className={[
+              'absolute flex gap-1 flex-wrap max-w-[70%]',
+              turf.isFeatured ? 'top-10 left-3' : 'top-3 left-3',
+            ].join(' ')}>
               {turf.sports.slice(0, 2).map((sport) => (
                 <span
                   key={sport}

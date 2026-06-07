@@ -19,10 +19,16 @@ export interface IUser extends Document {
   passwordResetExpires?: Date;
   emailVerificationOtp?: string;
   emailVerificationExpires?: Date;
+  subscription: {
+    tier: 'free' | 'pro' | 'business';
+    validUntil: Date | null;
+    razorpaySubId?: string;
+  };
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
   compareRefreshToken(candidateToken: string): Promise<boolean>;
+  isSubscriptionActive(): boolean;
 }
 
 interface IUserModel extends Model<IUser> {
@@ -96,6 +102,21 @@ const UserSchema = new Schema<IUser>(
       type: Date,
       select: false,
     },
+    subscription: {
+      tier: {
+        type: String,
+        enum: ['free', 'pro', 'business'],
+        default: 'free',
+      },
+      validUntil: {
+        type: Date,
+        default: null,
+      },
+      razorpaySubId: {
+        type: String,
+        select: false,
+      },
+    },
   },
   {
     timestamps: true,
@@ -136,6 +157,12 @@ UserSchema.methods.compareRefreshToken = async function (
 ): Promise<boolean> {
   if (!this.refreshToken) return false;
   return bcrypt.compare(candidateToken, this.refreshToken);
+};
+
+UserSchema.methods.isSubscriptionActive = function (): boolean {
+  const sub = this.subscription as { tier: string; validUntil: Date | null } | undefined;
+  if (!sub || sub.tier === 'free') return false;
+  return sub.validUntil === null || sub.validUntil > new Date();
 };
 
 UserSchema.statics.findByEmail = function (email: string) {

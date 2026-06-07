@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { format } from 'date-fns'
 import { motion } from 'framer-motion'
 import StarIcon from '@mui/icons-material/Star'
@@ -40,6 +40,8 @@ function TurfDetailSkeleton() {
 export default function TurfDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const walkInCourtId = searchParams.get('court')
   const [selectedDate] = useState(new Date())
   const [selectedSlots, setSelectedSlots] = useState<Slot[]>([])
   const [totalPrice, setTotalPrice] = useState(0)
@@ -51,8 +53,11 @@ export default function TurfDetailPage() {
     queryFn: async () => {
       const res = await turfApi.getById(id)
       const turfData = res.data.data
-      // Set initial court
-      if (turfData.courts.length > 0) {
+      // Set initial court — prefer walk-in pre-selection via ?court= param
+      if (walkInCourtId) {
+        const match = turfData.courts.find((c: Court) => c._id === walkInCourtId)
+        if (match) setSelectedCourt(match)
+      } else if (turfData.courts.length > 0) {
         setSelectedCourt((prev) => prev ?? turfData.courts[0])
       }
       return turfData
@@ -103,6 +108,14 @@ export default function TurfDetailPage() {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-8">
+            {/* Walk-in Banner */}
+            {walkInCourtId && (
+              <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-center gap-2">
+                <span className="text-emerald-600">📲</span>
+                <p className="text-sm text-emerald-800 font-medium">Walk-in booking — court pre-selected for you</p>
+              </div>
+            )}
+
             {/* Gallery */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <TurfGallery images={turf.images} turfName={turf.name} />
@@ -164,6 +177,7 @@ export default function TurfDetailPage() {
             <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
               <SlotGrid
                 turfId={turf._id}
+                turfName={turf.name}
                 courts={turf.courts}
                 onSelectionChange={handleSlotSelection}
               />

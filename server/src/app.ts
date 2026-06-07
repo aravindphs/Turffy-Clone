@@ -30,6 +30,7 @@ import paymentRoutes from './routes/payment.routes';
 import notificationRoutes from './routes/notification.routes';
 import adminRoutes from './routes/admin.routes';
 import uploadRoutes from './routes/upload.routes';
+import subscriptionRoutes from './routes/subscription.routes';
 
 const app: Application = express();
 const httpServer = http.createServer(app);
@@ -100,6 +101,7 @@ app.use(`${API}/payments`, paymentRoutes);
 app.use(`${API}/notifications`, notificationRoutes);
 app.use(`${API}/admin`, adminRoutes);
 app.use(`${API}/upload`, uploadRoutes);
+app.use(`${API}/subscription`, subscriptionRoutes);
 
 // ---- 404 Handler ----
 app.use(notFound);

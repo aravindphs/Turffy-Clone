@@ -460,6 +460,36 @@ export const getAnalytics = asyncHandler(async (req: Request, res: Response) => 
   );
 });
 
+// ---- FEATURE A TURF (admin) ----
+export const featureTurf = asyncHandler(async (req: Request, res: Response) => {
+  const { turfId } = req.params;
+  const { days = 30, remove = false } = req.body as { days?: number; remove?: boolean };
+
+  if (remove) {
+    await Turf.findByIdAndUpdate(turfId, { $set: { isFeatured: false, featuredUntil: null } });
+    sendSuccess(res, null, 'Turf removed from featured listings');
+    return;
+  }
+
+  const featuredUntil = new Date();
+  featuredUntil.setDate(featuredUntil.getDate() + days);
+
+  const turf = await Turf.findByIdAndUpdate(
+    turfId,
+    { $set: { isFeatured: true, featuredUntil } },
+    { new: true }
+  )
+    .select('name isFeatured featuredUntil')
+    .lean();
+
+  if (!turf) {
+    sendError(res, 'Turf not found.', 404);
+    return;
+  }
+
+  sendSuccess(res, { turf }, `Turf featured for ${days} days`);
+});
+
 // ---- GET REVENUE STATS ----
 export const getRevenue = asyncHandler(async (req: Request, res: Response) => {
   const { period = 'monthly', year, month } = req.query as Record<string, string>;

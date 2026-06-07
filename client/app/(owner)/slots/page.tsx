@@ -59,6 +59,7 @@ export default function OwnerSlotsPage() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
         <SlotGrid
           turfId={turf._id}
+          turfName={turf.name}
           courts={turf.courts}
           ownerMode={true}
           onOwnerSlotClick={handleOwnerSlotClick}

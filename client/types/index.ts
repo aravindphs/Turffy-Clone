@@ -10,6 +10,10 @@ export interface User {
   role: UserRole
   avatar?: string
   isVerified: boolean
+  subscription?: {
+    tier: 'free' | 'pro' | 'business'
+    validUntil: string | null
+  }
   createdAt: string
   updatedAt: string
 }
@@ -110,6 +114,8 @@ export interface Turf {
   averageRating: number
   totalReviews: number
   totalBookings: number
+  isFeatured?: boolean
+  featuredUntil?: string | null
   createdAt: string
   updatedAt: string
 }
