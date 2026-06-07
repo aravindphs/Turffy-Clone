@@ -4,12 +4,14 @@ import { useState, Suspense } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
+import dynamic from 'next/dynamic'
 import SearchIcon from '@mui/icons-material/Search'
-import LocationOnIcon from '@mui/icons-material/LocationOn'
-import FilterListIcon from '@mui/icons-material/FilterList'
 import CloseIcon from '@mui/icons-material/Close'
 import TuneIcon from '@mui/icons-material/Tune'
 import GpsFixedIcon from '@mui/icons-material/GpsFixed'
+import MapIcon from '@mui/icons-material/Map'
+import ViewListIcon from '@mui/icons-material/ViewList'
+// LocationOnIcon and FilterListIcon removed (unused)
 import { turfApi } from '@/lib/api'
 import { TurfGrid } from '@/components/turf/TurfGrid'
 import { Navbar } from '@/components/layout/Navbar'
@@ -17,6 +19,11 @@ import { Footer } from '@/components/layout/Footer'
 import { Button } from '@/components/ui/Button'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { TurfAmenity, SportType, TurfFilters } from '@/types'
+
+const MapView = dynamic(
+  () => import('@/components/turf/MapView').then((m) => ({ default: m.MapView })),
+  { ssr: false }
+)
 
 const CITIES = [
   'Chennai', 'Coimbatore', 'Madurai', 'Tiruchirappalli', 'Salem',
@@ -47,6 +54,7 @@ function TurfsContent() {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000])
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [searchInput, setSearchInput] = useState(city)
+  const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid')
 
   const filters: TurfFilters = {
     city: city || undefined,
@@ -248,7 +256,7 @@ function TurfsContent() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Results count */}
+        {/* Results count + view toggle */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-xl font-bold text-slate-900">
@@ -260,9 +268,41 @@ function TurfsContent() {
               </p>
             )}
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-lg border transition-colors ${
+                viewMode === 'grid'
+                  ? 'bg-brand-600 text-white border-brand-600'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+              title="List view"
+            >
+              <ViewListIcon fontSize="small" />
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              className={`p-2 rounded-lg border transition-colors ${
+                viewMode === 'map'
+                  ? 'bg-brand-600 text-white border-brand-600'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+              title="Map view"
+            >
+              <MapIcon fontSize="small" />
+            </button>
+          </div>
         </div>
 
-        <TurfGrid turfs={turfs} isLoading={isLoading} />
+        {viewMode === 'grid' ? (
+          <TurfGrid turfs={turfs} isLoading={isLoading} />
+        ) : (
+          <MapView
+            turfs={turfs}
+            onTurfClick={(id) => router.push(`/turfs/${id}`)}
+            userLocation={lat && lng ? { lat, lng } : undefined}
+          />
+        )}
 
         {/* Load More */}
         {!isLoading && turfs.length > 0 && data?.pagination && data.pagination.page < data.pagination.totalPages && (
