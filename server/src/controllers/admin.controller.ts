@@ -297,6 +297,169 @@ export const getAllTurfs = asyncHandler(async (req: Request, res: Response) => {
   sendPaginated(res, turfs, total, pageNum, limitNum, 'Turfs retrieved');
 });
 
+// ---- GET ANALYTICS ----
+export const getAnalytics = asyncHandler(async (req: Request, res: Response) => {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  thirtyDaysAgo.setUTCHours(0, 0, 0, 0);
+
+  const [
+    dailyBookings,
+    revenueByCity,
+    topTurfs,
+    userGrowth,
+  ] = await Promise.all([
+    // Daily booking counts and revenue for last 30 days
+    Booking.aggregate([
+      { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+            day: { $dayOfMonth: '$createdAt' },
+          },
+          bookings: { $sum: 1 },
+          revenue: {
+            $sum: {
+              $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$totalAmount', 0],
+            },
+          },
+        },
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+      {
+        $project: {
+          _id: 0,
+          date: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: {
+                $dateFromParts: {
+                  year: '$_id.year',
+                  month: '$_id.month',
+                  day: '$_id.day',
+                },
+              },
+            },
+          },
+          bookings: 1,
+          revenue: 1,
+        },
+      },
+    ]),
+
+    // Revenue by city
+    Booking.aggregate([
+      { $match: { paymentStatus: 'paid' } },
+      {
+        $lookup: {
+          from: 'turfs',
+          localField: 'turf',
+          foreignField: '_id',
+          as: 'turfData',
+        },
+      },
+      { $unwind: '$turfData' },
+      {
+        $group: {
+          _id: '$turfData.city',
+          revenue: { $sum: '$totalAmount' },
+          bookings: { $sum: 1 },
+        },
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: 10 },
+      {
+        $project: {
+          _id: 0,
+          city: '$_id',
+          revenue: 1,
+          bookings: 1,
+        },
+      },
+    ]),
+
+    // Top-performing turfs by bookings
+    Booking.aggregate([
+      { $match: { status: { $in: ['confirmed', 'completed'] } } },
+      {
+        $group: {
+          _id: '$turf',
+          bookings: { $sum: 1 },
+          revenue: { $sum: '$totalAmount' },
+        },
+      },
+      { $sort: { bookings: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: 'turfs',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'turf',
+        },
+      },
+      { $unwind: '$turf' },
+      {
+        $project: {
+          _id: 0,
+          turfId: '$_id',
+          turfName: '$turf.name',
+          city: '$turf.city',
+          bookings: 1,
+          revenue: 1,
+        },
+      },
+    ]),
+
+    // User growth over last 30 days
+    User.aggregate([
+      { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+            day: { $dayOfMonth: '$createdAt' },
+          },
+          newUsers: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+      {
+        $project: {
+          _id: 0,
+          date: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: {
+                $dateFromParts: {
+                  year: '$_id.year',
+                  month: '$_id.month',
+                  day: '$_id.day',
+                },
+              },
+            },
+          },
+          newUsers: 1,
+        },
+      },
+    ]),
+  ]);
+
+  sendSuccess(
+    res,
+    {
+      dailyBookings,
+      revenueByCity,
+      topTurfs,
+      userGrowth,
+    },
+    'Analytics retrieved'
+  );
+});
+
 // ---- GET REVENUE STATS ----
 export const getRevenue = asyncHandler(async (req: Request, res: Response) => {
   const { period = 'monthly', year, month } = req.query as Record<string, string>;

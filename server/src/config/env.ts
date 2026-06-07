@@ -46,6 +46,10 @@ const envSchema = z.object({
   SMTP_USER: z.string().min(1),
   SMTP_PASS: z.string().min(1),
   SMTP_FROM: z.string().min(1),
+
+  MSG91_AUTH_KEY: z.string().optional(),
+  MSG91_OTP_TEMPLATE_ID: z.string().optional(),
+  MSG91_BOOKING_TEMPLATE_ID: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

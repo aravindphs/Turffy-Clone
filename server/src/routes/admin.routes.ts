@@ -10,6 +10,7 @@ router.use(authenticate, requireRole('admin'));
 
 router.get('/dashboard', adminController.getDashboardStats);
 router.get('/revenue', adminController.getRevenue);
+router.get('/analytics', adminController.getAnalytics);
 
 // Turf management
 router.get('/turfs', adminController.getAllTurfs);

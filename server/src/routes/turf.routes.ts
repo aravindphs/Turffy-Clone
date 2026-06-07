@@ -9,14 +9,8 @@ const router = Router();
 
 // ---- Public routes ----
 router.get('/', optionalAuth, turfController.getTurfs);
-router.get('/:slugOrId', optionalAuth, turfController.getTurf);
-router.get(
-  '/:turfId/courts/:courtId/availability',
-  optionalAuth,
-  turfController.getTurfAvailability
-);
 
-// ---- Owner-only routes ----
+// ---- Owner-only routes (must be before /:slugOrId to avoid wildcard match) ----
 router.post(
   '/',
   authenticate,
@@ -29,6 +23,21 @@ router.get(
   authenticate,
   requireRole('owner'),
   turfController.getMyTurf
+);
+
+router.get(
+  '/my/analytics',
+  authenticate,
+  requireRole('owner'),
+  turfController.getMyTurfAnalytics
+);
+
+// ---- Public wildcard routes (after specific paths) ----
+router.get('/:slugOrId', optionalAuth, turfController.getTurf);
+router.get(
+  '/:turfId/courts/:courtId/availability',
+  optionalAuth,
+  turfController.getTurfAvailability
 );
 
 router.patch(

@@ -18,6 +18,7 @@ import {
 } from '../utils/slot.utils';
 import * as paymentService from '../services/payment.service';
 import { sendBookingConfirmation, sendBookingCancellation } from '../services/email.service';
+import { sendBookingConfirmationSms, sendBookingCancellationSms } from '../services/msg91.service';
 import { createNotification } from '../services/notification.service';
 import { emitSlotBooked, emitSlotUnblocked } from '../socket/slot.socket';
 import { v4 as uuidv4 } from 'uuid';
@@ -251,6 +252,18 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
       `${user.name} booked a slot at your turf on ${dateStr} from ${booking.startTime} to ${booking.endTime}.`,
       { bookingId: booking._id.toString(), userId: user._id.toString() }
     ).catch(console.error);
+
+    // Send SMS confirmation if user has a phone number
+    if (user.phone) {
+      sendBookingConfirmationSms(
+        user.phone,
+        turfDoc.name,
+        dateStr,
+        booking.startTime,
+        booking.endTime,
+        booking.totalAmount
+      ).catch(console.error);
+    }
   }
 
   sendSuccess(res, { booking: booking.toJSON() }, 'Payment verified. Booking confirmed!');
@@ -343,14 +356,37 @@ export const cancelBooking = asyncHandler(async (req: Request, res: Response) =>
   booking.cancelledAt = new Date();
   booking.cancelledBy = req.user!._id;
 
-  // Initiate refund if paid
+  // Calculate hours until booking start for refund policy
+  const bookingDateTime = new Date(booking.date);
+  const [bHour, bMin] = booking.startTime.split(':').map(Number);
+  bookingDateTime.setUTCHours(bHour, bMin, 0, 0);
+  const hoursUntilBooking = (bookingDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
+
+  // Get cancellation policy from turf
+  const turfForPolicy = await Turf.findById(booking.turf).select('cancellationPolicy name').lean();
+  const policy = turfForPolicy?.cancellationPolicy ?? { fullRefundHours: 24, halfRefundHours: 6 };
+
+  let refundAmount = 0;
+  let refundPercentage = 0;
+
   if (booking.paymentStatus === 'paid' && booking.paymentId) {
-    try {
-      await paymentService.refund(booking.paymentId);
-      booking.paymentStatus = 'refunded';
-    } catch (refundErr) {
-      console.error('Refund failed:', refundErr);
-      // Don't block cancellation — handle refund separately
+    if (hoursUntilBooking >= policy.fullRefundHours) {
+      refundPercentage = 100;
+      refundAmount = booking.totalAmount;
+    } else if (hoursUntilBooking >= policy.halfRefundHours) {
+      refundPercentage = 50;
+      refundAmount = Math.floor(booking.totalAmount * 0.5);
+    }
+    // else 0% refund
+
+    if (refundAmount > 0) {
+      try {
+        await paymentService.refund(booking.paymentId, refundAmount * 100); // in paise
+        booking.paymentStatus = 'refunded';
+      } catch (refundErr) {
+        console.error('Refund failed:', refundErr);
+        // Don't block cancellation — handle refund separately
+      }
     }
   }
 
@@ -367,14 +403,23 @@ export const cancelBooking = asyncHandler(async (req: Request, res: Response) =>
     bookingId
   );
 
+  const refundMessage = refundPercentage > 0
+    ? `₹${refundAmount} (${refundPercentage}%) refund initiated.`
+    : 'No refund applicable per cancellation policy.';
+
   // Notify and email
   sendBookingCancellation(req.user!, booking, turfName).catch(console.error);
+
+  // Send SMS cancellation if user has phone
+  if (req.user!.phone) {
+    sendBookingCancellationSms(req.user!.phone, turfName, dateStr, refundAmount).catch(console.error);
+  }
 
   createNotification(
     booking.user,
     'booking_cancelled',
     'Booking Cancelled',
-    `Your booking at ${turfName} on ${dateStr} has been cancelled. ${booking.paymentStatus === 'refunded' ? 'Refund initiated.' : ''}`,
+    `Your booking at ${turfName} on ${dateStr} has been cancelled. ${refundMessage}`,
     { bookingId }
   ).catch(console.error);
 

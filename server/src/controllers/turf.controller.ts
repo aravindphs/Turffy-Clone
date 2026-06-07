@@ -157,6 +157,7 @@ export const getTurfs = asyncHandler(async (req: Request, res: Response) => {
     maxPrice,
     amenities,
     sort = 'rating',
+    search,
   } = req.query as Record<string, string>;
 
   const pageNum = Math.max(1, parseInt(page, 10));
@@ -180,6 +181,9 @@ export const getTurfs = asyncHandler(async (req: Request, res: Response) => {
   if (amenities) {
     const amenityList = amenities.split(',').map((a) => a.trim());
     match.amenities = { $all: amenityList };
+  }
+  if (search) {
+    match.$text = { $search: search };
   }
 
   let pipeline: mongoose.PipelineStage[] = [];
@@ -421,6 +425,180 @@ export const deleteTurfImage = asyncHandler(async (req: Request, res: Response) 
   await turf.save();
 
   sendSuccess(res, { images: turf.images }, 'Image deleted successfully');
+});
+
+// ---- GET MY TURF ANALYTICS (owner) ----
+export const getMyTurfAnalytics = asyncHandler(async (req: Request, res: Response) => {
+  const turf = await Turf.findOne({ owner: req.user!._id, isActive: true }).lean();
+  if (!turf) {
+    sendError(res, 'You have not created a turf yet.', 404);
+    return;
+  }
+
+  const turfId = turf._id;
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  thirtyDaysAgo.setUTCHours(0, 0, 0, 0);
+
+  const [
+    dailyStats,
+    courtStats,
+    timeSlotStats,
+    occupancyData,
+  ] = await Promise.all([
+    // Bookings and revenue per day (last 30 days)
+    Booking.aggregate([
+      {
+        $match: {
+          turf: turfId,
+          createdAt: { $gte: thirtyDaysAgo },
+          status: { $in: ['confirmed', 'completed'] },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+            day: { $dayOfMonth: '$createdAt' },
+          },
+          bookings: { $sum: 1 },
+          revenue: { $sum: '$totalAmount' },
+        },
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+      {
+        $project: {
+          _id: 0,
+          date: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: {
+                $dateFromParts: {
+                  year: '$_id.year',
+                  month: '$_id.month',
+                  day: '$_id.day',
+                },
+              },
+            },
+          },
+          bookings: 1,
+          revenue: 1,
+        },
+      },
+    ]),
+
+    // Most popular court
+    Booking.aggregate([
+      {
+        $match: {
+          turf: turfId,
+          status: { $in: ['confirmed', 'completed'] },
+        },
+      },
+      {
+        $group: {
+          _id: '$court',
+          bookings: { $sum: 1 },
+        },
+      },
+      { $sort: { bookings: -1 } },
+      { $limit: 5 },
+      {
+        $lookup: {
+          from: 'courts',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'court',
+        },
+      },
+      { $unwind: '$court' },
+      {
+        $project: {
+          _id: 0,
+          courtId: '$_id',
+          courtName: '$court.name',
+          sport: '$court.sport',
+          bookings: 1,
+        },
+      },
+    ]),
+
+    // Most popular time slots
+    Booking.aggregate([
+      {
+        $match: {
+          turf: turfId,
+          status: { $in: ['confirmed', 'completed'] },
+        },
+      },
+      {
+        $group: {
+          _id: '$startTime',
+          bookings: { $sum: 1 },
+        },
+      },
+      { $sort: { bookings: -1 } },
+      { $limit: 10 },
+      {
+        $project: {
+          _id: 0,
+          startTime: '$_id',
+          bookings: 1,
+        },
+      },
+    ]),
+
+    // Occupancy rate: total confirmed bookings duration vs total possible slots in last 30 days
+    Booking.aggregate([
+      {
+        $match: {
+          turf: turfId,
+          date: { $gte: thirtyDaysAgo },
+          status: { $in: ['confirmed', 'completed'] },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalBookedMinutes: { $sum: '$durationMinutes' },
+          totalBookings: { $sum: 1 },
+        },
+      },
+    ]),
+  ]);
+
+  // Calculate total possible minutes in 30 days based on operating hours
+  const [openHour, openMin] = turf.operatingHours.open.split(':').map(Number);
+  const [closeHour, closeMin] = turf.operatingHours.close.split(':').map(Number);
+  const dailyOperatingMinutes = (closeHour * 60 + closeMin) - (openHour * 60 + openMin);
+
+  const courts = await Court.countDocuments({ turf: turfId, isActive: true });
+
+  const totalPossibleMinutes = dailyOperatingMinutes * 30 * courts;
+  const bookedMinutes = occupancyData[0]?.totalBookedMinutes || 0;
+  const occupancyRate = totalPossibleMinutes > 0
+    ? Math.round((bookedMinutes / totalPossibleMinutes) * 100 * 100) / 100
+    : 0;
+
+  sendSuccess(
+    res,
+    {
+      turfId,
+      turfName: turf.name,
+      period: 'last_30_days',
+      dailyStats,
+      courtStats,
+      popularTimeSlots: timeSlotStats,
+      occupancy: {
+        rate: occupancyRate,
+        bookedMinutes,
+        totalPossibleMinutes,
+        totalBookings: occupancyData[0]?.totalBookings || 0,
+      },
+    },
+    'Turf analytics retrieved'
+  );
 });
 
 // ---- UPDATE AMENITIES ----
