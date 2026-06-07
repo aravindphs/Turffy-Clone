@@ -57,11 +57,18 @@ export default function OwnerTurfPage() {
           <h1 className="text-2xl font-extrabold text-slate-900">My Turf</h1>
           <p className="text-slate-500 mt-1">Manage your turf listing and courts</p>
         </div>
-        <Link href="/turf/edit">
-          <Button size="sm" leftIcon={<EditIcon fontSize="small" />} variant="outline">
-            Edit Turf
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/turf/new">
+            <Button size="sm" leftIcon={<AddIcon fontSize="small" />}>
+              Create New Turf
+            </Button>
+          </Link>
+          <Link href="/turf/edit">
+            <Button size="sm" leftIcon={<EditIcon fontSize="small" />} variant="outline">
+              Edit Turf
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Turf Overview */}

@@ -11,7 +11,6 @@ import TuneIcon from '@mui/icons-material/Tune'
 import GpsFixedIcon from '@mui/icons-material/GpsFixed'
 import MapIcon from '@mui/icons-material/Map'
 import ViewListIcon from '@mui/icons-material/ViewList'
-// LocationOnIcon and FilterListIcon removed (unused)
 import { turfApi } from '@/lib/api'
 import { TurfGrid } from '@/components/turf/TurfGrid'
 import { Navbar } from '@/components/layout/Navbar'

@@ -1,14 +1,16 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, subDays } from 'date-fns'
 import { motion } from 'framer-motion'
 import BookOnlineIcon from '@mui/icons-material/BookOnline'
 import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee'
 import StarIcon from '@mui/icons-material/Star'
 import TodayIcon from '@mui/icons-material/Today'
 import { statsApi } from '@/lib/api'
+import api from '@/lib/api'
 import { StatsCard } from '@/components/owner/StatsCard'
+import { RevenueChart } from '@/components/owner/RevenueChart'
 import { Badge } from '@/components/ui/Badge'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { Booking } from '@/types'
@@ -41,12 +43,35 @@ function BookingRow({ booking }: { booking: Booking }) {
   )
 }
 
+interface DailyRevenue {
+  date: string
+  revenue: number
+  bookings: number
+}
+
 export default function OwnerDashboard() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ['owner-stats'],
     queryFn: async () => {
       const res = await statsApi.ownerStats()
       return res.data.data
+    },
+  })
+
+  const { data: analyticsData } = useQuery({
+    queryKey: ['owner-analytics'],
+    queryFn: async () => {
+      try {
+        const res = await api.get<{ data: DailyRevenue[] }>('/turfs/my/analytics')
+        return res.data.data
+      } catch {
+        // Fallback: generate mock structure with zeros for last 30 days
+        return Array.from({ length: 30 }, (_, i) => ({
+          date: format(subDays(new Date(), 29 - i), 'yyyy-MM-dd'),
+          revenue: 0,
+          bookings: 0,
+        }))
+      }
     },
   })
 
@@ -88,6 +113,13 @@ export default function OwnerDashboard() {
           color="orange"
         />
       </div>
+
+      {/* Analytics Chart */}
+      {analyticsData && analyticsData.length > 0 && (
+        <div className="mb-8">
+          <RevenueChart data={analyticsData} title="Revenue — Last 30 Days" />
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Recent Bookings */}
