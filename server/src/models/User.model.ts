@@ -7,7 +7,6 @@ export interface IUser extends Document {
   _id: mongoose.Types.ObjectId;
   name: string;
   email: string;
-  password?: string;
   phone?: string;
   avatar?: string;
   role: UserRole;
@@ -15,10 +14,6 @@ export interface IUser extends Document {
   isVerified: boolean;
   isActive: boolean;
   refreshToken?: string;
-  passwordResetOtp?: string;
-  passwordResetExpires?: Date;
-  emailVerificationOtp?: string;
-  emailVerificationExpires?: Date;
   subscription: {
     tier: 'free' | 'pro' | 'business';
     validUntil: Date | null;
@@ -26,7 +21,6 @@ export interface IUser extends Document {
   };
   createdAt: Date;
   updatedAt: Date;
-  comparePassword(candidatePassword: string): Promise<boolean>;
   compareRefreshToken(candidateToken: string): Promise<boolean>;
   isSubscriptionActive(): boolean;
 }
@@ -51,11 +45,6 @@ const UserSchema = new Schema<IUser>(
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address'],
     },
-    password: {
-      type: String,
-      minlength: [8, 'Password must be at least 8 characters'],
-      select: false,
-    },
     phone: {
       type: String,
       match: [/^[6-9]\d{9}$/, 'Please provide a valid Indian phone number'],
@@ -76,7 +65,7 @@ const UserSchema = new Schema<IUser>(
     },
     isVerified: {
       type: Boolean,
-      default: false,
+      default: true,
     },
     isActive: {
       type: Boolean,
@@ -84,22 +73,6 @@ const UserSchema = new Schema<IUser>(
     },
     refreshToken: {
       type: String,
-      select: false,
-    },
-    passwordResetOtp: {
-      type: String,
-      select: false,
-    },
-    passwordResetExpires: {
-      type: Date,
-      select: false,
-    },
-    emailVerificationOtp: {
-      type: String,
-      select: false,
-    },
-    emailVerificationExpires: {
-      type: Date,
       select: false,
     },
     subscription: {
@@ -128,13 +101,6 @@ UserSchema.index({ email: 1 });
 UserSchema.index({ role: 1 });
 UserSchema.index({ isActive: 1 });
 
-// Hash password before saving
-UserSchema.pre('save', async function (next) {
-  if (!this.isModified('password') || !this.password) return next();
-  this.password = await bcrypt.hash(this.password, 12);
-  next();
-});
-
 // Hash refresh token before saving
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('refreshToken') || !this.refreshToken) return next();
@@ -144,13 +110,6 @@ UserSchema.pre('save', async function (next) {
   }
   next();
 });
-
-UserSchema.methods.comparePassword = async function (
-  candidatePassword: string
-): Promise<boolean> {
-  if (!this.password) return false;
-  return bcrypt.compare(candidatePassword, this.password);
-};
 
 UserSchema.methods.compareRefreshToken = async function (
   candidateToken: string
@@ -171,7 +130,7 @@ UserSchema.statics.findByEmail = function (email: string) {
 
 // Remove sensitive fields from JSON output
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-UserSchema.set('toJSON', { transform: (_doc: any, ret: any) => { delete ret.password; delete ret.refreshToken; delete ret.googleId; delete ret.passwordResetOtp; delete ret.passwordResetExpires; delete ret.emailVerificationOtp; delete ret.emailVerificationExpires; delete ret.__v; return ret; } });
+UserSchema.set('toJSON', { transform: (_doc: any, ret: any) => { delete ret.refreshToken; delete ret.googleId; delete ret.__v; return ret; } });
 
 const User = mongoose.model<IUser, IUserModel>('User', UserSchema);
 export default User;
