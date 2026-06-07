@@ -4,7 +4,6 @@ import {
   AuthResponse,
   Booking,
   BlockedSlot,
-  LoginPayload,
   Message,
   Notification,
   OwnerStats,
@@ -12,7 +11,6 @@ import {
   PlatformStats,
   RazorpayOrderResponse,
   RazorpaySuccessPayload,
-  RegisterPayload,
   Review,
   Slot,
   Turf,
@@ -103,32 +101,15 @@ api.interceptors.response.use(
 // ─── Auth APIs ────────────────────────────────────────────────────────────────
 
 export const authApi = {
-  login: (payload: LoginPayload) =>
-    api.post<ApiResponse<AuthResponse>>('/auth/login', payload),
-
-  register: (payload: RegisterPayload) =>
-    api.post<ApiResponse<AuthResponse>>('/auth/register', payload),
-
+  googleAuth: (googleToken: string, role: 'user' | 'owner' = 'user') =>
+    api.post<ApiResponse<AuthResponse>>('/auth/google', { googleToken, role }),
   logout: () => api.post<ApiResponse<null>>('/auth/logout'),
-
   getMe: () => api.get<ApiResponse<User>>('/auth/me'),
-
-  refreshToken: () => api.post<ApiResponse<null>>('/auth/refresh'),
-
-  forgotPassword: (email: string) =>
-    api.post<ApiResponse<null>>('/auth/forgot-password', { email }),
-
-  resetPassword: (token: string, password: string) =>
-    api.post<ApiResponse<null>>('/auth/reset-password', { token, password }),
-
-  googleAuth: (token: string) =>
-    api.post<ApiResponse<AuthResponse>>('/auth/google', { token }),
-
-  updateProfile: (data: Partial<User>) =>
-    api.put<ApiResponse<User>>('/auth/profile', data),
-
-  changePassword: (currentPassword: string, newPassword: string) =>
-    api.put<ApiResponse<null>>('/auth/change-password', { currentPassword, newPassword }),
+  refreshToken: () => api.post<ApiResponse<null>>('/auth/refresh-token'),
+  updateProfile: (data: FormData | Partial<User>) =>
+    api.patch<ApiResponse<User>>('/auth/profile', data, {
+      headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    }),
 }
 
 // ─── Turf APIs ────────────────────────────────────────────────────────────────
