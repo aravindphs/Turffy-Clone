@@ -20,10 +20,13 @@ import {
   resetPasswordSchema,
   changePasswordSchema,
   updateProfileSchema,
+  verifyEmailSchema,
+  resendVerificationSchema,
 } from '../validators/auth.validator';
 import {
   sendWelcomeEmail,
   sendPasswordReset,
+  sendEmailVerification,
 } from '../services/email.service';
 import { cloudinary } from '../middleware/upload';
 
@@ -74,26 +77,18 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     phone: body.phone,
   });
 
-  const tokenPayload = {
-    userId: user._id.toString(),
-    role: user.role,
-    email: user.email,
-  };
-
-  const accessToken = generateAccessToken(tokenPayload);
-  const refreshToken = generateRefreshToken(tokenPayload);
-
-  // Store hashed refresh token
-  user.refreshToken = refreshToken;
+  // Generate email verification OTP
+  const verificationOtp = crypto.randomInt(100000, 999999).toString();
+  const verificationOtpHash = await bcrypt.hash(verificationOtp, 10);
+  user.emailVerificationOtp = verificationOtpHash;
+  user.emailVerificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
   await user.save();
 
-  setTokenCookies(res, accessToken, refreshToken);
-
-  // Fire and forget welcome email
-  sendWelcomeEmail(user).catch(console.error);
+  // Send verification email (fire and forget)
+  sendEmailVerification(user, verificationOtp).catch(console.error);
 
   const safeUser = user.toJSON();
-  sendSuccess(res, { user: safeUser }, 'Account created successfully', 201);
+  sendSuccess(res, { user: safeUser }, 'Account created successfully. Check your email to verify your account.', 201);
 });
 
 // ---- LOGIN ----
@@ -109,6 +104,15 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   const isPasswordValid = await user.comparePassword(body.password);
   if (!isPasswordValid) {
     sendError(res, 'Invalid email or password.', 401);
+    return;
+  }
+
+  if (!user.isVerified) {
+    res.status(403).json({
+      success: false,
+      message: 'Please verify your email before logging in. Check your inbox for the OTP.',
+      data: { requiresVerification: true, email: user.email },
+    });
     return;
   }
 
@@ -366,6 +370,81 @@ export const updateProfile = asyncHandler(async (req: Request, res: Response) =>
   ).lean();
 
   sendSuccess(res, { user }, 'Profile updated successfully');
+});
+
+// ---- VERIFY EMAIL ----
+export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
+  const body = verifyEmailSchema.parse(req.body);
+
+  const user = await User.findOne({ email: body.email }).select(
+    '+emailVerificationOtp +emailVerificationExpires +refreshToken'
+  );
+
+  if (!user || !user.emailVerificationOtp || !user.emailVerificationExpires) {
+    sendError(res, 'Invalid or expired OTP.', 400);
+    return;
+  }
+
+  if (new Date() > user.emailVerificationExpires) {
+    sendError(res, 'OTP has expired. Please request a new one.', 400);
+    return;
+  }
+
+  const isOtpValid = await bcrypt.compare(body.otp, user.emailVerificationOtp);
+  if (!isOtpValid) {
+    sendError(res, 'Invalid OTP.', 400);
+    return;
+  }
+
+  user.isVerified = true;
+  user.emailVerificationOtp = undefined;
+  user.emailVerificationExpires = undefined;
+
+  const tokenPayload = {
+    userId: user._id.toString(),
+    role: user.role,
+    email: user.email,
+  };
+
+  const accessToken = generateAccessToken(tokenPayload);
+  const refreshToken = generateRefreshToken(tokenPayload);
+
+  user.refreshToken = refreshToken;
+  await user.save();
+
+  setTokenCookies(res, accessToken, refreshToken);
+
+  // Fire and forget welcome email after verification
+  sendWelcomeEmail(user).catch(console.error);
+
+  const safeUser = user.toJSON();
+  sendSuccess(res, { user: safeUser }, 'Email verified successfully. Welcome to Turffy!');
+});
+
+// ---- RESEND VERIFICATION ----
+export const resendVerification = asyncHandler(async (req: Request, res: Response) => {
+  const body = resendVerificationSchema.parse(req.body);
+
+  const user = await User.findOne({ email: body.email, isVerified: false }).select(
+    '+emailVerificationOtp +emailVerificationExpires'
+  );
+
+  // Always respond success to prevent enumeration
+  if (!user) {
+    sendSuccess(res, null, 'If an unverified account with this email exists, a new OTP has been sent.');
+    return;
+  }
+
+  const otp = crypto.randomInt(100000, 999999).toString();
+  const otpHash = await bcrypt.hash(otp, 10);
+
+  user.emailVerificationOtp = otpHash;
+  user.emailVerificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  await user.save();
+
+  sendEmailVerification(user, otp).catch(console.error);
+
+  sendSuccess(res, null, 'If an unverified account with this email exists, a new OTP has been sent.');
 });
 
 // ---- CHANGE PASSWORD ----

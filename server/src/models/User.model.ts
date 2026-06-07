@@ -17,6 +17,8 @@ export interface IUser extends Document {
   refreshToken?: string;
   passwordResetOtp?: string;
   passwordResetExpires?: Date;
+  emailVerificationOtp?: string;
+  emailVerificationExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -86,6 +88,14 @@ const UserSchema = new Schema<IUser>(
       type: Date,
       select: false,
     },
+    emailVerificationOtp: {
+      type: String,
+      select: false,
+    },
+    emailVerificationExpires: {
+      type: Date,
+      select: false,
+    },
   },
   {
     timestamps: true,
@@ -134,7 +144,7 @@ UserSchema.statics.findByEmail = function (email: string) {
 
 // Remove sensitive fields from JSON output
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-UserSchema.set('toJSON', { transform: (_doc: any, ret: any) => { delete ret.password; delete ret.refreshToken; delete ret.googleId; delete ret.passwordResetOtp; delete ret.passwordResetExpires; delete ret.__v; return ret; } });
+UserSchema.set('toJSON', { transform: (_doc: any, ret: any) => { delete ret.password; delete ret.refreshToken; delete ret.googleId; delete ret.passwordResetOtp; delete ret.passwordResetExpires; delete ret.emailVerificationOtp; delete ret.emailVerificationExpires; delete ret.__v; return ret; } });
 
 const User = mongoose.model<IUser, IUserModel>('User', UserSchema);
 export default User;

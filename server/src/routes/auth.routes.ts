@@ -12,6 +12,8 @@ router.post('/login', authLimiter, authController.login);
 router.post('/google', authLimiter, authController.googleLogin);
 router.post('/forgot-password', authLimiter, authController.forgotPassword);
 router.post('/reset-password', authLimiter, authController.resetPassword);
+router.post('/verify-email', authLimiter, authController.verifyEmail);
+router.post('/resend-verification', authLimiter, authController.resendVerification);
 
 // Semi-public: refresh uses cookie (path-scoped)
 router.post('/refresh-token', authController.refreshToken);

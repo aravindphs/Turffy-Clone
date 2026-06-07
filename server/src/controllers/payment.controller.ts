@@ -1,10 +1,15 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import Booking from '../models/Booking.model';
+import Turf from '../models/Turf.model';
+import User from '../models/User.model';
 import asyncHandler from '../utils/asyncHandler';
 import { sendSuccess, sendError, sendPaginated } from '../utils/response.utils';
 import * as paymentService from '../services/payment.service';
 import { env } from '../config/env';
+import { emitSlotBooked } from '../socket/slot.socket';
+import { createNotification } from '../services/notification.service';
+import { sendBookingConfirmation } from '../services/email.service';
 
 // ---- CREATE ORDER (re-initiate payment for a pending booking) ----
 export const createOrder = asyncHandler(async (req: Request, res: Response) => {
@@ -60,7 +65,7 @@ export const webhookVerify = asyncHandler(async (req: Request, res: Response) =>
     return;
   }
 
-  const rawBody = JSON.stringify(req.body);
+  const rawBody = (req.body as Buffer).toString();
   const expectedSignature = crypto
     .createHmac('sha256', webhookSecret)
     .update(rawBody)
@@ -71,7 +76,7 @@ export const webhookVerify = asyncHandler(async (req: Request, res: Response) =>
     return;
   }
 
-  const event = req.body as {
+  const event = JSON.parse(rawBody) as {
     event: string;
     payload: {
       payment: { entity: { order_id: string; id: string; status: string } };
@@ -81,7 +86,7 @@ export const webhookVerify = asyncHandler(async (req: Request, res: Response) =>
   if (event.event === 'payment.captured') {
     const { order_id, id: paymentId } = event.payload.payment.entity;
 
-    await Booking.findOneAndUpdate(
+    const booking = await Booking.findOneAndUpdate(
       { razorpayOrderId: order_id, paymentStatus: 'pending' },
       {
         $set: {
@@ -89,8 +94,58 @@ export const webhookVerify = asyncHandler(async (req: Request, res: Response) =>
           status: 'confirmed',
           paymentId,
         },
+      },
+      { new: true }
+    ).populate('turf', 'name owner city address operatingHours');
+
+    if (booking) {
+      const turfDoc = booking.turf as unknown as {
+        _id: import('mongoose').Types.ObjectId;
+        name: string;
+        owner: import('mongoose').Types.ObjectId;
+        city: string;
+        address: string;
+        operatingHours: { open: string; close: string };
+      };
+      const dateStr = booking.date.toISOString().slice(0, 10);
+
+      // Emit real-time slot booked event
+      emitSlotBooked(turfDoc._id.toString(), booking.court.toString(), dateStr, {
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        status: 'booked',
+        bookingId: booking._id.toString(),
+      });
+
+      // Fetch user for notifications and email
+      const bookingUser = await User.findById(booking.user).lean();
+      if (bookingUser) {
+        // Send booking confirmation email
+        sendBookingConfirmation(
+          bookingUser as unknown as import('../models/User.model').IUser,
+          booking,
+          turfDoc as unknown as import('../models/Turf.model').ITurf
+        ).catch(console.error);
+
+        // Notify user
+        createNotification(
+          booking.user,
+          'booking_confirmed',
+          'Booking Confirmed!',
+          `Your booking at ${turfDoc.name} on ${dateStr} from ${booking.startTime} to ${booking.endTime} is confirmed.`,
+          { bookingId: booking._id.toString() }
+        ).catch(console.error);
+
+        // Notify turf owner
+        createNotification(
+          turfDoc.owner,
+          'payment_success',
+          'New Booking Received',
+          `${bookingUser.name} booked a slot at your turf on ${dateStr} from ${booking.startTime} to ${booking.endTime}.`,
+          { bookingId: booking._id.toString(), userId: booking.user.toString() }
+        ).catch(console.error);
       }
-    );
+    }
   } else if (event.event === 'payment.failed') {
     const { order_id } = event.payload.payment.entity;
     await Booking.findOneAndUpdate(

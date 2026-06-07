@@ -16,6 +16,11 @@ export interface IOperatingHours {
   close: string; // HH:mm
 }
 
+export interface ICancellationPolicy {
+  fullRefundHours: number;  // cancel >= fullRefundHours before → 100% refund
+  halfRefundHours: number;  // cancel >= halfRefundHours before → 50% refund; else 0%
+}
+
 export interface ITurf extends Document {
   _id: mongoose.Types.ObjectId;
   owner: mongoose.Types.ObjectId;
@@ -41,6 +46,7 @@ export interface ITurf extends Document {
   totalReviews: number;
   isVerified: boolean;
   isActive: boolean;
+  cancellationPolicy: ICancellationPolicy;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -189,6 +195,10 @@ const TurfSchema = new Schema<ITurf>(
       type: Boolean,
       default: true,
     },
+    cancellationPolicy: {
+      fullRefundHours: { type: Number, default: 24, min: 0 },
+      halfRefundHours: { type: Number, default: 6, min: 0 },
+    },
   },
   {
     timestamps: true,
@@ -202,6 +212,8 @@ TurfSchema.index({ location: '2dsphere' });
 TurfSchema.index({ city: 1, isActive: 1, isVerified: 1 });
 TurfSchema.index({ slug: 1 });
 TurfSchema.index({ rating: -1 });
+// Full-text search index
+TurfSchema.index({ name: 'text', description: 'text', address: 'text', city: 'text' });
 
 // Virtual: courts
 TurfSchema.virtual('courts', {

@@ -62,6 +62,25 @@ const baseTemplate = (content: string): string => `
 `;
 
 /**
+ * Send email verification OTP.
+ */
+export const sendEmailVerification = async (user: IUser, otp: string): Promise<void> => {
+  const content = `
+    <h2>Verify Your Turffy Account</h2>
+    <p>Hi ${user.name}, welcome to Turffy! Please verify your email address to get started.</p>
+    <p>Your One-Time Password (OTP) is:</p>
+    <div class="otp">${otp}</div>
+    <p>This OTP is valid for <strong>10 minutes</strong>. Do not share it with anyone.</p>
+    <p>If you did not create a Turffy account, please ignore this email.</p>
+  `;
+  await sendMail({
+    to: user.email,
+    subject: 'Verify your Turffy account',
+    html: baseTemplate(content),
+  });
+};
+
+/**
  * Send welcome / verify email.
  */
 export const sendWelcomeEmail = async (user: IUser): Promise<void> => {
