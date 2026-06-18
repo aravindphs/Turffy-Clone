@@ -9,8 +9,9 @@ import StarIcon from '@mui/icons-material/Star'
 import LocationOnIcon from '@mui/icons-material/LocationOn'
 import DirectionsIcon from '@mui/icons-material/Directions'
 import CheckIcon from '@mui/icons-material/Check'
-import { turfApi } from '@/lib/api'
+import { turfApi, matchApi } from '@/lib/api'
 import { Slot, Court } from '@/types'
+import Link from 'next/link'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { TurfGallery } from '@/components/turf/TurfGallery'
@@ -47,6 +48,16 @@ export default function TurfDetailPage() {
   const [totalPrice, setTotalPrice] = useState(0)
   const [selectedCourt, setSelectedCourt] = useState<Court | null>(null)
   const [bookingStep, setBookingStep] = useState<1 | 2 | 3>(1)
+
+  const { data: openMatchesData } = useQuery({
+    queryKey: ['turf-open-matches', id],
+    queryFn: async () => {
+      const today = format(new Date(), 'yyyy-MM-dd')
+      const res = await matchApi.getTurfMatches(id, today)
+      return res.data.data
+    },
+    enabled: !!id,
+  })
 
   const { data: turf, isLoading } = useQuery({
     queryKey: ['turf', id],
@@ -113,6 +124,25 @@ export default function TurfDetailPage() {
               <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-center gap-2">
                 <span className="text-emerald-600">📲</span>
                 <p className="text-sm text-emerald-800 font-medium">Walk-in booking — court pre-selected for you</p>
+              </div>
+            )}
+
+            {/* Open Matches Banner */}
+            {openMatchesData && openMatchesData.length > 0 && (
+              <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                <p className="text-sm font-semibold text-blue-900 mb-2">⚽ Open Matches Today</p>
+                <div className="space-y-2">
+                  {openMatchesData.map((match) => (
+                    <div key={match._id} className="flex items-center justify-between">
+                      <span className="text-sm text-blue-800">
+                        {match.startTime}–{match.endTime} &bull; {match.maxPlayers - match.spotsLeft}/{match.maxPlayers} players
+                      </span>
+                      <Link href={`/matches/${match._id}`} className="text-xs font-medium text-blue-600 hover:text-blue-700">
+                        View →
+                      </Link>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

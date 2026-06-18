@@ -1,22 +1,40 @@
 'use client'
 
-import { useEffect, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import BookOnlineIcon from '@mui/icons-material/BookOnline'
 import SportsSoccerIcon from '@mui/icons-material/SportsSoccer'
+import PeopleAltIcon from '@mui/icons-material/PeopleAlt'
 import { Navbar } from '@/components/layout/Navbar'
 import { Button } from '@/components/ui/Button'
+import { CreateOpenMatchModal } from '@/components/matches/CreateOpenMatchModal'
+import { useAuthStore } from '@/store/auth.store'
+import { OpenMatch } from '@/types'
 
 function PaymentSuccessContent() {
   const searchParams = useSearchParams()
   const bookingId = searchParams.get('booking_id')
+  const sport = searchParams.get('sport') || 'football'
+  const turfName = searchParams.get('turf_name') || 'Turf'
+  const date = searchParams.get('date') || ''
+  const startTime = searchParams.get('start_time') || ''
+  const endTime = searchParams.get('end_time') || ''
+
+  const { user } = useAuthStore()
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [createdMatch, setCreatedMatch] = useState<OpenMatch | null>(null)
 
   useEffect(() => {
     // Celebration animation trigger (no-op, visual feedback via framer-motion)
   }, [])
+
+  const handleMatchSuccess = (match: OpenMatch) => {
+    setCreatedMatch(match)
+    setShowCreateModal(false)
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -26,7 +44,7 @@ function PaymentSuccessContent() {
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, type: 'spring' }}
-          className="text-center max-w-md"
+          className="text-center max-w-md w-full"
         >
           <motion.div
             initial={{ scale: 0 }}
@@ -66,9 +84,69 @@ function PaymentSuccessContent() {
                 </Button>
               </Link>
             </div>
+
+            {/* Create Open Match prompt — only for regular users with a bookingId */}
+            {user?.role === 'user' && bookingId && !createdMatch && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                className="mt-6 bg-brand-50 border border-brand-200 rounded-2xl p-5"
+              >
+                <p className="text-sm font-semibold text-brand-900 mb-1">
+                  ⚽ Want to fill your slots?
+                </p>
+                <p className="text-xs text-brand-700 mb-4">
+                  Create an open match so other players can find and join your game!
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<PeopleAltIcon fontSize="small" />}
+                  className="w-full"
+                  onClick={() => setShowCreateModal(true)}
+                >
+                  Create Open Match
+                </Button>
+              </motion.div>
+            )}
+
+            {/* Created match confirmation */}
+            {createdMatch && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5"
+              >
+                <p className="text-sm font-semibold text-emerald-900 mb-1">Open match created!</p>
+                <p className="text-xs text-emerald-700 mb-3">
+                  Players can now find and join your game.
+                </p>
+                <Link href={`/matches/${createdMatch._id}`}>
+                  <Button size="sm" className="w-full">
+                    View Your Match →
+                  </Button>
+                </Link>
+              </motion.div>
+            )}
           </motion.div>
         </motion.div>
       </div>
+
+      {/* Create Open Match Modal */}
+      {bookingId && (
+        <CreateOpenMatchModal
+          bookingId={bookingId}
+          sport={sport}
+          turfName={turfName}
+          date={date}
+          startTime={startTime}
+          endTime={endTime}
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={handleMatchSuccess}
+        />
+      )}
     </div>
   )
 }

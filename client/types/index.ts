@@ -297,6 +297,38 @@ export interface RazorpaySuccessPayload {
   razorpay_signature: string
 }
 
+// ─── Open Match ────────────────────────────────────────────────────────────────
+
+export type OpenMatchStatus = 'open' | 'full' | 'cancelled' | 'completed'
+export type PlayerRequestStatus = 'pending' | 'approved' | 'rejected'
+
+export interface OpenMatchPlayer {
+  user: User | string
+  status: PlayerRequestStatus
+  joinedAt: string
+}
+
+export interface OpenMatch {
+  _id: string
+  turf: Turf | string
+  court: Court | string
+  booking: string
+  organizer: User | string
+  sport: SportType
+  city: string
+  date: string
+  startTime: string
+  endTime: string
+  maxPlayers: number
+  minPlayers: number
+  players: OpenMatchPlayer[]
+  status: OpenMatchStatus
+  spotsLeft: number
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
 // ─── Socket Events ─────────────────────────────────────────────────────────────
 
 export interface SlotUpdateEvent {
