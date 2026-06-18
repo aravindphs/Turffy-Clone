@@ -27,6 +27,10 @@ import { v4 as uuidv4 } from 'uuid';
 export const createBooking = asyncHandler(async (req: Request, res: Response) => {
   const body = createBookingSchema.parse(req.body);
 
+  // Extract consolidated start/end times from the slots array
+  const startTime = body.slots[0].startTime;
+  const endTime = body.slots[body.slots.length - 1].endTime;
+
   const turf = await Turf.findOne({ _id: body.turfId, isActive: true, isVerified: true }).lean();
   if (!turf) {
     sendError(res, 'Turf not found or not available.', 404);
@@ -66,8 +70,8 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
     if (
       !isSlotAvailable(
         existingBookings.map((b) => ({ startTime: b.startTime, endTime: b.endTime })),
-        body.startTime,
-        body.endTime
+        startTime,
+        endTime
       )
     ) {
       await session.abortTransaction();
@@ -87,8 +91,8 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
     if (
       !isSlotAvailable(
         existingBlocked.map((b) => ({ startTime: b.startTime, endTime: b.endTime })),
-        body.startTime,
-        body.endTime
+        startTime,
+        endTime
       )
     ) {
       await session.abortTransaction();
@@ -99,8 +103,8 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
     // Validate times are within operating hours
     const openMinutes = parseInt(turf.operatingHours.open.replace(':', ''), 10);
     const closeMinutes = parseInt(turf.operatingHours.close.replace(':', ''), 10);
-    const startMinutes = parseInt(body.startTime.replace(':', ''), 10);
-    const endMinutes = parseInt(body.endTime.replace(':', ''), 10);
+    const startMinutes = parseInt(startTime.replace(':', ''), 10);
+    const endMinutes = parseInt(endTime.replace(':', ''), 10);
 
     if (startMinutes < openMinutes || endMinutes > closeMinutes) {
       await session.abortTransaction();
@@ -112,10 +116,10 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
       return;
     }
 
-    const durationMinutes = getDurationMinutes(body.startTime, body.endTime);
+    const durationMinutes = getDurationMinutes(startTime, endTime);
     const totalAmount = calculateTotalPrice(
-      body.startTime,
-      body.endTime,
+      startTime,
+      endTime,
       turf.slotInterval,
       turf.basePrice,
       turf.peakHours
@@ -131,8 +135,8 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
         turfName: turf.name,
         userName: req.user!.name,
         date: body.date,
-        startTime: body.startTime,
-        endTime: body.endTime,
+        startTime,
+        endTime,
       }
     );
 
@@ -144,8 +148,8 @@ export const createBooking = asyncHandler(async (req: Request, res: Response) =>
           turf: body.turfId,
           court: body.courtId,
           date: queryDate,
-          startTime: body.startTime,
-          endTime: body.endTime,
+          startTime,
+          endTime,
           durationMinutes,
           totalAmount,
           status: 'pending',

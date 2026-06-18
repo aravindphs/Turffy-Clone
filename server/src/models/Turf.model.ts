@@ -105,7 +105,6 @@ const TurfSchema = new Schema<ITurf>(
       required: [true, 'City is required'],
       trim: true,
       lowercase: true,
-      index: true,
     },
     state: {
       type: String,
@@ -221,7 +220,6 @@ const TurfSchema = new Schema<ITurf>(
 // Geo index
 TurfSchema.index({ location: '2dsphere' });
 TurfSchema.index({ city: 1, isActive: 1, isVerified: 1 });
-TurfSchema.index({ slug: 1 });
 TurfSchema.index({ rating: -1 });
 // Full-text search index
 TurfSchema.index({ name: 'text', description: 'text', address: 'text', city: 'text' });
