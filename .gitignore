@@ -58,3 +58,6 @@ Thumbs.db
 
 # Uploads (uploaded locally during development)
 uploads/
+
+# Claude Code internal state
+.claude/
