@@ -6,6 +6,7 @@ import {
   BlockedSlot,
   Message,
   Notification,
+  OpenMatch,
   OwnerStats,
   PaginatedResponse,
   PlatformStats,
@@ -311,6 +312,31 @@ export const subscriptionApi = {
     razorpaySignature: string
     tier: 'pro' | 'business'
   }) => api.post('/subscription/verify', data),
+}
+
+// ─── Open Match APIs ──────────────────────────────────────────────────────────
+
+export const matchApi = {
+  list: (filters?: { sport?: string; city?: string; date?: string; turfId?: string; page?: number; limit?: number }) =>
+    api.get<PaginatedResponse<OpenMatch>>('/matches', { params: filters }),
+
+  getById: (id: string) =>
+    api.get<ApiResponse<OpenMatch>>(`/matches/${id}`),
+
+  create: (data: { bookingId: string; maxPlayers: number; minPlayers: number; notes?: string }) =>
+    api.post<ApiResponse<OpenMatch>>('/matches', data),
+
+  join: (id: string) =>
+    api.post<ApiResponse<OpenMatch>>(`/matches/${id}/join`),
+
+  respondToJoin: (id: string, userId: string, status: 'approved' | 'rejected') =>
+    api.patch<ApiResponse<OpenMatch>>(`/matches/${id}/players/${userId}`, { status }),
+
+  cancel: (id: string) =>
+    api.delete<ApiResponse<null>>(`/matches/${id}`),
+
+  getTurfMatches: (turfId: string, date?: string) =>
+    api.get<ApiResponse<OpenMatch[]>>(`/matches/turf/${turfId}`, { params: date ? { date } : undefined }),
 }
 
 export default api
