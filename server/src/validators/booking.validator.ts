@@ -3,6 +3,21 @@ import { z } from 'zod';
 const timeRegex = /^\d{2}:\d{2}$/;
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
+const slotSchema = z.object({
+  startTime: z.string().regex(timeRegex, 'Start time must be in HH:mm format'),
+  endTime: z.string().regex(timeRegex, 'End time must be in HH:mm format'),
+}).refine(
+  (slot) => {
+    const [sh, sm] = slot.startTime.split(':').map(Number);
+    const [eh, em] = slot.endTime.split(':').map(Number);
+    return eh * 60 + em > sh * 60 + sm;
+  },
+  {
+    message: 'End time must be after start time',
+    path: ['endTime'],
+  }
+);
+
 export const createBookingSchema = z.object({
   turfId: z.string().regex(objectIdRegex, 'Invalid turf ID'),
   courtId: z.string().regex(objectIdRegex, 'Invalid court ID'),
@@ -15,18 +30,23 @@ export const createBookingSchema = z.object({
       today.setHours(0, 0, 0, 0);
       return bookingDate >= today;
     }, 'Booking date cannot be in the past'),
-  startTime: z.string().regex(timeRegex, 'Start time must be in HH:mm format'),
-  endTime: z.string().regex(timeRegex, 'End time must be in HH:mm format'),
+  slots: z
+    .array(slotSchema)
+    .min(1, 'At least one slot is required'),
   notes: z.string().trim().max(500).optional(),
 }).refine(
   (data) => {
-    const [sh, sm] = data.startTime.split(':').map(Number);
-    const [eh, em] = data.endTime.split(':').map(Number);
-    return eh * 60 + em > sh * 60 + sm;
+    // Validate all slots are contiguous: each slot's endTime must equal the next slot's startTime
+    for (let i = 0; i < data.slots.length - 1; i++) {
+      if (data.slots[i].endTime !== data.slots[i + 1].startTime) {
+        return false;
+      }
+    }
+    return true;
   },
   {
-    message: 'End time must be after start time',
-    path: ['endTime'],
+    message: 'Slots must be contiguous: each slot\'s end time must equal the next slot\'s start time',
+    path: ['slots'],
   }
 );
 
